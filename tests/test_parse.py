@@ -180,6 +180,28 @@ NEWFILEUID:NONE
             self.assertTrue(type(key) is six.text_type)
             self.assertTrue(type(value) is not six.binary_type)
 
+    def testForceEncoding(self):
+        fh = six.BytesIO(six.b("""OFXHEADER:100
+DATA:OFXSGML
+VERSION:102
+SECURITY:NONE
+ENCODING:USASCII
+CHARSET:1252
+COMPRESSION:NONE
+OLDFILEUID:NONE
+NEWFILEUID:NONE
+"""))
+        ofx_file = OfxFile(fh, encoding='cp1250')
+        headers = ofx_file.headers
+        result = ofx_file.fh.read()
+
+        self.assertTrue(type(result) is six.text_type)
+        for key, value in six.iteritems(headers):
+            self.assertTrue(type(key) is six.text_type)
+            self.assertTrue(type(value) is not six.binary_type)
+
+        self.assertEquals(ofx_file.encoding, 'cp1250')
+
     def testUTF8Japanese(self):
         fh = six.BytesIO(six.b("""OFXHEADER:100
 DATA:OFXSGML
@@ -204,6 +226,18 @@ NEWFILEUID:NONE
         fh = six.BytesIO(six.b("OFXHEADER:100\rDATA:OFXSGML\r"))
         ofx_file = OfxFile(fh)
         self.assertEquals(len(ofx_file.headers.keys()), 2)
+
+    def testDecimalParsingWithCommas(self):
+        # open files
+        ofx_standard = OfxParser.parse(open_file('bank_medium.ofx'))
+        ofx_w_commas = OfxParser.parse(open_file('bank_medium_with_commas.ofx'))
+
+        # extract transactions
+        t1 = list(t.amount for t in ofx_standard.account.statement.transactions)
+        t2 = list(t.amount for t in ofx_w_commas.account.statement.transactions)
+
+        # compare
+        self.assertEquals(t1, t2)
 
 
 class TestParse(TestCase):
